@@ -1,73 +1,135 @@
 package com.example.drummersmetronome.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.drummersmetronome.data.model.Folder
+import kotlinx.coroutines.delay
 
 @Composable
 fun MetronomeScreen(viewModel: MetronomeViewModel) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val bpm by viewModel.bpm.collectAsState()
+    val numerator by viewModel.numerator.collectAsState()
+    val denominator by viewModel.denominator.collectAsState()
     val folders by viewModel.folders.collectAsState()
     
+    var flashActive by remember { mutableStateOf(false) }
     var showSaveDialog by remember { mutableStateOf(false) }
+
+    // Observe beat events for flashing
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            viewModel.beatEvent.collect {
+                flashActive = true
+                delay(100)
+                flashActive = false
+            }
+        } else {
+            flashActive = false
+        }
+    }
+
+    val circleColor by animateColorAsState(
+        targetValue = if (flashActive) Color.Yellow else Color.Gray,
+        animationSpec = tween(durationMillis = 50),
+        label = "FlashAnimation"
+    )
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceEvenly
     ) {
-        // BPM Circle
-        Box(
-            contentAlignment = Alignment.Center,
+        // BPM Circle Button
+        Surface(
             modifier = Modifier
                 .size(250.dp)
-                .clickable { viewModel.toggleMetronome() }
+                .clip(CircleShape)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = rememberRipple(bounded = true, color = Color.Yellow, radius = 125.dp),
+                    onClick = { viewModel.toggleMetronome() }
+                ),
+            shape = CircleShape,
+            color = Color.Transparent,
+            tonalElevation = 4.dp,
+            shadowElevation = 8.dp
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawCircle(
-                    color = if (isPlaying) Color.Yellow else Color.Gray,
-                    style = Stroke(width = 8.dp.toPx())
-                )
+            Box(contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawCircle(
+                        color = circleColor,
+                        style = Stroke(width = 8.dp.toPx())
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = bpm.toString(),
+                        fontSize = 72.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "BPM",
+                        fontSize = 18.sp,
+                        color = Color.Gray
+                    )
+                }
             }
-            Text(
-                text = bpm.toString(),
-                fontSize = 64.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
         }
 
-        // Adjustments
+        // Signature
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SignaturePicker(numerator, denominator) { n, d -> viewModel.setSignature(n, d) }
+        }
+
+        // Adjustments Buttons
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { viewModel.adjustBpm(-5) }) {
-                    Text("-5", color = Color.White)
-                }
-                IconButton(onClick = { viewModel.adjustBpm(-1) }) {
-                    Icon(Icons.Default.Remove, contentDescription = null, tint = Color.White)
-                }
+            // Row 1: +/- 1
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BpmButton("-1", -1) { viewModel.adjustBpm(it) }
                 Spacer(modifier = Modifier.width(32.dp))
-                IconButton(onClick = { viewModel.adjustBpm(1) }) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
-                }
-                IconButton(onClick = { viewModel.adjustBpm(5) }) {
-                    Text("+5", color = Color.White)
-                }
+                BpmButton("+1", 1) { viewModel.adjustBpm(it) }
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Row 2: +/- 5
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BpmButton("-5", -5) { viewModel.adjustBpm(it) }
+                Spacer(modifier = Modifier.width(32.dp))
+                BpmButton("+5", 5) { viewModel.adjustBpm(it) }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             Slider(
                 value = bpm.toFloat(),
@@ -77,7 +139,10 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
             )
         }
 
-        Button(onClick = { showSaveDialog = true }) {
+        Button(
+            onClick = { showSaveDialog = true },
+            modifier = Modifier.height(56.dp).fillMaxWidth(0.6f)
+        ) {
             Text("Save Preset")
         }
     }
@@ -89,8 +154,68 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
             onSave = { folderId, name ->
                 viewModel.savePreset(folderId, name)
                 showSaveDialog = false
+            },
+            onCreateFolderAndSave = { folderName, presetName ->
+                viewModel.createFolderAndSavePreset(folderName, presetName)
+                showSaveDialog = false
             }
         )
+    }
+}
+
+@Composable
+fun BpmButton(label: String, delta: Int, onClick: (Int) -> Unit) {
+    FilledTonalButton(
+        onClick = { onClick(delta) },
+        modifier = Modifier.size(72.dp),
+        shape = CircleShape,
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun SignaturePicker(num: Int, den: Int, onChange: (Int, Int) -> Unit) {
+    var expandedNum by remember { mutableStateOf(false) }
+    var expandedDen by remember { mutableStateOf(false) }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box {
+            TextButton(onClick = { expandedNum = true }) { 
+                Text(num.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold) 
+            }
+            DropdownMenu(
+                expanded = expandedNum, 
+                onDismissRequest = { expandedNum = false },
+                modifier = Modifier.heightIn(max = 200.dp)
+            ) {
+                (1..16).forEach { n ->
+                    DropdownMenuItem(
+                        text = { Text(n.toString()) }, 
+                        onClick = { onChange(n, den); expandedNum = false }
+                    )
+                }
+            }
+        }
+        Text("/", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Box {
+            TextButton(onClick = { expandedDen = true }) { 
+                Text(den.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold) 
+            }
+            DropdownMenu(
+                expanded = expandedDen, 
+                onDismissRequest = { expandedDen = false },
+                modifier = Modifier.heightIn(max = 200.dp)
+            ) {
+                listOf(2, 4, 8, 16).forEach { d ->
+                    DropdownMenuItem(
+                        text = { Text(d.toString()) }, 
+                        onClick = { onChange(num, d); expandedDen = false }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -99,10 +224,13 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
 fun SavePresetDialog(
     folders: List<Folder>,
     onDismiss: () -> Unit,
-    onSave: (Long, String) -> Unit
+    onSave: (Long, String) -> Unit,
+    onCreateFolderAndSave: (String, String) -> Unit
 ) {
     var presetName by remember { mutableStateOf("") }
     var selectedFolder by remember { mutableStateOf<Folder?>(folders.firstOrNull()) }
+    var newFolderName by remember { mutableStateOf("") }
+    var isCreatingNewFolder by remember { mutableStateOf(folders.isEmpty()) }
     var expanded by remember { mutableStateOf(false) }
 
     AlertDialog(
@@ -116,40 +244,64 @@ fun SavePresetDialog(
                     label = { Text("Song Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (isCreatingNewFolder) {
                     OutlinedTextField(
-                        value = selectedFolder?.name ?: "Select Folder",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Folder") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        value = newFolderName,
+                        onValueChange = { newFolderName = it },
+                        label = { Text("New Folder Name") },
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        folders.forEach { folder ->
-                            DropdownMenuItem(
-                                text = { Text(folder.name) },
-                                onClick = {
-                                    selectedFolder = folder
-                                    expanded = false
-                                }
-                            )
+                    if (folders.isNotEmpty()) {
+                        TextButton(onClick = { isCreatingNewFolder = false }) {
+                            Text("Select existing folder")
                         }
+                    }
+                } else {
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedFolder?.name ?: "Select Folder",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Folder") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            folders.forEach { folder ->
+                                DropdownMenuItem(
+                                    text = { Text(folder.name) },
+                                    onClick = {
+                                        selectedFolder = folder
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    TextButton(onClick = { isCreatingNewFolder = true }) {
+                        Text("+ Create New Folder")
                     }
                 }
             }
         },
         confirmButton = {
             Button(
-                onClick = { selectedFolder?.let { onSave(it.id, presetName) } },
-                enabled = presetName.isNotBlank() && selectedFolder != null
+                onClick = { 
+                    if (isCreatingNewFolder) {
+                        onCreateFolderAndSave(newFolderName, presetName)
+                    } else {
+                        selectedFolder?.let { onSave(it.id, presetName) }
+                    }
+                },
+                enabled = presetName.isNotBlank() && (if (isCreatingNewFolder) newFolderName.isNotBlank() else selectedFolder != null)
             ) {
                 Text("Save")
             }

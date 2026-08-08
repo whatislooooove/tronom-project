@@ -20,8 +20,8 @@ class MetronomeRepository(private val dao: MetronomeDao) {
         return dao.getPresetsByFolder(folderId)
     }
 
-    suspend fun insertPreset(folderId: Long, name: String, bpm: Int) {
-        dao.insertPreset(Preset(folderId = folderId, name = name, bpm = bpm))
+    suspend fun insertPreset(preset: Preset): Long {
+        return dao.insertPreset(preset)
     }
 
     suspend fun deletePreset(preset: Preset) {
@@ -29,11 +29,11 @@ class MetronomeRepository(private val dao: MetronomeDao) {
     }
 
     suspend fun clearAll() {
-        dao.clearAll()
+        dao.deleteAllPresets()
+        dao.deleteAllFolders()
     }
     
     suspend fun getAllFoldersSync() = dao.getAllFoldersSync()
     suspend fun getPresetsByFolderSync(folderId: Long) = dao.getPresetsByFolderSync(folderId)
     suspend fun insertFolder(folder: Folder) = dao.insertFolder(folder)
-    suspend fun insertPreset(preset: Preset) = dao.insertPreset(preset)
 }

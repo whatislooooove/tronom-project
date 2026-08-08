@@ -20,8 +20,9 @@ import java.io.InputStreamReader
 
 class LibraryViewModel(private val repository: MetronomeRepository) : ViewModel() {
 
-    val folders: StateFlow<List<Folder>> = repository.allFolders.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
+    // Initial state is null to avoid "Empty" screen flicker
+    val folders: StateFlow<List<Folder>?> = repository.allFolders.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5000), null
     )
 
     fun getPresets(folderId: Long) = repository.getPresetsByFolder(folderId)

@@ -5,7 +5,6 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Transaction
 import com.example.drummersmetronome.data.model.Folder
 import com.example.drummersmetronome.data.model.Preset
 import kotlinx.coroutines.flow.Flow
@@ -19,28 +18,22 @@ interface MetronomeDao {
     suspend fun insertFolder(folder: Folder): Long
 
     @Delete
-    suspend fun deleteFolder(folder: Folder)
+    suspend fun deleteFolder(folder: Folder): Int
 
     @Query("SELECT * FROM presets WHERE folderId = :folderId")
     fun getPresetsByFolder(folderId: Long): Flow<List<Preset>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPreset(preset: Preset)
+    suspend fun insertPreset(preset: Preset): Long
 
     @Delete
-    suspend fun deletePreset(preset: Preset)
-
-    @Transaction
-    suspend fun clearAll() {
-        deleteAllPresets()
-        deleteAllFolders()
-    }
+    suspend fun deletePreset(preset: Preset): Int
 
     @Query("DELETE FROM presets")
-    suspend fun deleteAllPresets()
+    suspend fun deleteAllPresets(): Int
 
     @Query("DELETE FROM folders")
-    suspend fun deleteAllFolders()
+    suspend fun deleteAllFolders(): Int
     
     @Query("SELECT * FROM folders")
     suspend fun getAllFoldersSync(): List<Folder>

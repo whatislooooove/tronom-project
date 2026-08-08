@@ -14,7 +14,9 @@ class AppContainer(context: Context) {
             context,
             MetronomeDatabase::class.java,
             "metronome_db"
-        ).build()
+        )
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     val repository: MetronomeRepository by lazy {

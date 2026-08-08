@@ -1,6 +1,7 @@
 package com.example.drummersmetronome.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -22,18 +23,22 @@ fun MetronomeNavGraph(
     repository: MetronomeRepository,
     engine: MetronomeEngine
 ) {
+    // Create ViewModels once at the Graph level so they persist during navigation
+    val metronomeViewModel = remember { MetronomeViewModel(repository, engine) }
+    val libraryViewModel = remember { LibraryViewModel(repository) }
+
     NavHost(navController = navController, startDestination = Screen.Metronome.route) {
         composable(Screen.Metronome.route) {
-            val viewModel = MetronomeViewModel(repository, engine)
-            MetronomeScreen(viewModel)
+            MetronomeScreen(metronomeViewModel)
         }
         composable(Screen.Library.route) {
-            val viewModel = LibraryViewModel(repository)
             LibraryScreen(
-                viewModel = viewModel,
-                onLoadPreset = { bpm ->
-                    engine.setBpm(bpm)
-                    navController.popBackStack()
+                viewModel = libraryViewModel,
+                metronomeViewModel = metronomeViewModel,
+                onNavigateBack = {
+                    navController.navigate(Screen.Metronome.route) {
+                        popUpTo(Screen.Metronome.route) { inclusive = true }
+                    }
                 }
             )
         }

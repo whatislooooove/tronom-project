@@ -18,6 +18,10 @@ import com.example.drummersmetronome.ui.navigation.Screen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Force hardware volume buttons to control media volume
+        volumeControlStream = android.media.AudioManager.STREAM_MUSIC
+        
         val container = (application as MetronomeApplication).container
 
         setContent {

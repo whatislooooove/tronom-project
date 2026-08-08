@@ -21,11 +21,15 @@ data class Preset(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val folderId: Long,
     val name: String,
-    val bpm: Int
+    val bpm: Int,
+    val numerator: Int = 4,
+    val denominator: Int = 4
 )
 
 @Serializable
 data class PresetExport(
     val name: String,
-    val bpm: Int
+    val bpm: Int,
+    val numerator: Int = 4,
+    val denominator: Int = 4
 )
