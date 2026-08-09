@@ -1,23 +1,22 @@
 package com.example.drummersmetronome.ui.screens
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.drummersmetronome.R
 import com.example.drummersmetronome.data.model.Folder
 import kotlinx.coroutines.delay
 
@@ -29,83 +28,61 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
     val denominator by viewModel.denominator.collectAsState()
     val folders by viewModel.folders.collectAsState()
     
-    var flashActive by remember { mutableStateOf(false) }
+    var currentBeat by remember { mutableIntStateOf(-1) }
+    var lastBeatTime by remember { mutableLongStateOf(0L) }
     var showSaveDialog by remember { mutableStateOf(false) }
 
-    // Observe beat events for flashing
+    // Listen to beats from the engine
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
-            viewModel.beatEvent.collect {
-                flashActive = true
-                delay(100)
-                flashActive = false
+            viewModel.beatEvent.collect { beat ->
+                currentBeat = beat
+                lastBeatTime = System.currentTimeMillis()
             }
         } else {
-            flashActive = false
+            currentBeat = -1
         }
     }
 
-    val circleColor by animateColorAsState(
-        targetValue = if (flashActive) Color.Yellow else Color.Gray,
-        animationSpec = tween(durationMillis = 50),
-        label = "FlashAnimation"
-    )
-
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF2D1B33)) // Dark purple room style
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceEvenly
     ) {
-        // BPM Circle Button
-        Surface(
+        // Bongo Cat Image Area
+        Box(
             modifier = Modifier
-                .size(250.dp)
-                .clip(CircleShape)
+                .size(320.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = rememberRipple(bounded = true, color = Color.Yellow, radius = 125.dp),
+                    indication = null,
                     onClick = { viewModel.toggleMetronome() }
                 ),
-            shape = CircleShape,
-            color = Color.Transparent,
-            tonalElevation = 4.dp,
-            shadowElevation = 8.dp
+            contentAlignment = Alignment.Center
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    drawCircle(
-                        color = circleColor,
-                        style = Stroke(width = 8.dp.toPx())
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = bpm.toString(),
-                        fontSize = 72.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "BPM",
-                        fontSize = 18.sp,
-                        color = Color.Gray
-                    )
-                }
-            }
+            BongoCatAnimation(
+                beat = currentBeat,
+                lastBeatTime = lastBeatTime,
+                isPlaying = isPlaying
+            )
         }
 
-        // Signature
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SignaturePicker(numerator, denominator) { n, d -> viewModel.setSignature(n, d) }
-        }
+        // BPM Display (Number only)
+        Text(
+            text = bpm.toString(),
+            fontSize = 110.sp,
+            fontWeight = FontWeight.Black,
+            color = Color.White
+        )
+
+        // Signature Picker
+        SignaturePicker(numerator, denominator) { n, d -> viewModel.setSignature(n, d) }
 
         // Adjustments Buttons
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // Row 1: +/- 1
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -118,7 +95,6 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
             
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Row 2: +/- 5
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -135,15 +111,20 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
                 value = bpm.toFloat(),
                 onValueChange = { viewModel.setBpm(it.toInt()) },
                 valueRange = 20f..300f,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color.White,
+                    activeTrackColor = Color.White.copy(alpha = 0.5f)
+                )
             )
         }
 
         Button(
             onClick = { showSaveDialog = true },
-            modifier = Modifier.height(56.dp).fillMaxWidth(0.6f)
+            modifier = Modifier.height(56.dp).fillMaxWidth(0.6f),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f))
         ) {
-            Text("Save Preset")
+            Text("Save Preset", color = Color.White)
         }
     }
 
@@ -164,12 +145,46 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
 }
 
 @Composable
+fun BongoCatAnimation(beat: Int, lastBeatTime: Long, isPlaying: Boolean) {
+    val hitDuration = 100L // Time paws stay down in ms
+    var isCurrentlyHitting by remember { mutableStateOf(false) }
+
+    // Logic to reset to idle state after hit duration
+    LaunchedEffect(lastBeatTime) {
+        if (isPlaying && beat != -1) {
+            isCurrentlyHitting = true
+            delay(hitDuration)
+            isCurrentlyHitting = false
+        } else {
+            isCurrentlyHitting = false
+        }
+    }
+
+    val imageRes = when {
+        !isCurrentlyHitting -> R.drawable.cat_idle
+        beat == 0 -> R.drawable.cat_both // Strong beat
+        else -> R.drawable.cat_right     // Weak beat
+    }
+
+    Image(
+        painter = painterResource(id = imageRes),
+        contentDescription = "Bongo Cat Metronome",
+        modifier = Modifier.fillMaxSize(),
+        contentScale = ContentScale.Fit
+    )
+}
+
+@Composable
 fun BpmButton(label: String, delta: Int, onClick: (Int) -> Unit) {
     FilledTonalButton(
         onClick = { onClick(delta) },
         modifier = Modifier.size(72.dp),
         shape = CircleShape,
-        contentPadding = PaddingValues(0.dp)
+        contentPadding = PaddingValues(0.dp),
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = Color.White.copy(alpha = 0.1f),
+            contentColor = Color.White
+        )
     ) {
         Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
@@ -183,7 +198,7 @@ fun SignaturePicker(num: Int, den: Int, onChange: (Int, Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box {
             TextButton(onClick = { expandedNum = true }) { 
-                Text(num.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold) 
+                Text(num.toString(), fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White) 
             }
             DropdownMenu(
                 expanded = expandedNum, 
@@ -198,10 +213,10 @@ fun SignaturePicker(num: Int, den: Int, onChange: (Int, Int) -> Unit) {
                 }
             }
         }
-        Text("/", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text("/", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.5f))
         Box {
             TextButton(onClick = { expandedDen = true }) { 
-                Text(den.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold) 
+                Text(den.toString(), fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White) 
             }
             DropdownMenu(
                 expanded = expandedDen, 
