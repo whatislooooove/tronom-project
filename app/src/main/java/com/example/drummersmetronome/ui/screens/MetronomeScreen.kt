@@ -60,11 +60,11 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
         // Upper section: Cat + BPM + Signature
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(top = 4.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(230.dp)
+                    .size(210.dp) // Slightly smaller cat
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -81,7 +81,7 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
 
             Text(
                 text = bpm.toString(),
-                fontSize = 80.sp,
+                fontSize = 72.sp, // Slightly smaller font
                 fontWeight = FontWeight.ExtraBold,
                 fontFamily = FontFamily.Monospace,
                 color = Color.White,
@@ -140,9 +140,9 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
         Button(
             onClick = { showSaveDialog = true },
             modifier = Modifier
-                .padding(bottom = 16.dp)
-                .height(60.dp)
-                .fillMaxWidth(0.8f),
+                .padding(bottom = 32.dp) // Lifted higher
+                .height(48.dp) // Compact height
+                .fillMaxWidth(0.6f),
             shape = MaterialTheme.shapes.large,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.White.copy(alpha = 0.15f),
@@ -153,9 +153,8 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
             Text(
                 text = "Save preset",
                 color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
             )
         }
     }
