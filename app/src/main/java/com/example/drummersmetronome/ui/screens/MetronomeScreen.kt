@@ -1,10 +1,7 @@
 package com.example.drummersmetronome.ui.screens
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -50,21 +47,25 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
         }
     }
 
-    Column(
+    // Root container
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF2D1B33)) 
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(Color(0xFF2D1B33))
     ) {
-        // Upper section: Cat + BPM + Signature
+        // Scrollable content to prevent any clipping
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // 1. The Cat (Anchor at the top)
             Box(
                 modifier = Modifier
-                    .size(210.dp) // Slightly smaller cat
+                    .size(320.dp)
+                    .padding(top = 8.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -79,83 +80,78 @@ fun MetronomeScreen(viewModel: MetronomeViewModel) {
                 )
             }
 
-            Text(
-                text = bpm.toString(),
-                fontSize = 72.sp, // Slightly smaller font
-                fontWeight = FontWeight.ExtraBold,
-                fontFamily = FontFamily.Monospace,
-                color = Color.White,
-                modifier = Modifier.padding(top = 0.dp)
-            )
-
-            SignaturePicker(numerator, denominator) { n, d -> viewModel.setSignature(n, d) }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Middle section: Adjustments
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+            // 2. Main Content Block (Placed tightly after/overlapping the cat's bottom space)
+            Column(
+                modifier = Modifier
+                    .offset(y = (-60).dp) // Small visual lift, but within safe bounds
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                BpmButton("-1", -1) { viewModel.adjustBpm(it) }
-                Spacer(modifier = Modifier.width(24.dp))
-                BpmButton("+1", 1) { viewModel.adjustBpm(it) }
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                BpmButton("-5", -5) { viewModel.adjustBpm(it) }
-                Spacer(modifier = Modifier.width(24.dp))
-                BpmButton("+5", 5) { viewModel.adjustBpm(it) }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Slider(
-                value = bpm.toFloat(),
-                onValueChange = { viewModel.setBpm(it.toInt()) },
-                valueRange = 20f..300f,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color.White.copy(alpha = 0.5f)
+                Text(
+                    text = bpm.toString(),
+                    fontSize = 80.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color.White
                 )
-            )
-        }
 
-        Spacer(modifier = Modifier.weight(1f))
+                SignaturePicker(numerator, denominator) { n, d -> viewModel.setSignature(n, d) }
 
-        // Lower section: Save Button
-        Button(
-            onClick = { showSaveDialog = true },
-            modifier = Modifier
-                .padding(bottom = 32.dp) // Lifted higher
-                .height(48.dp) // Compact height
-                .fillMaxWidth(0.6f),
-            shape = MaterialTheme.shapes.large,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.White.copy(alpha = 0.15f),
-                contentColor = Color.White
-            ),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
-        ) {
-            Text(
-                text = "Save preset",
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Slider(
+                    value = bpm.toFloat(),
+                    onValueChange = { viewModel.setBpm(it.toInt()) },
+                    valueRange = 20f..300f,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                    colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White.copy(alpha = 0.5f))
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    BpmButton("-1", -1) { viewModel.adjustBpm(it) }
+                    Spacer(modifier = Modifier.width(32.dp))
+                    BpmButton("+1", 1) { viewModel.adjustBpm(it) }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    BpmButton("-5", -5) { viewModel.adjustBpm(it) }
+                    Spacer(modifier = Modifier.width(32.dp))
+                    BpmButton("+5", 5) { viewModel.adjustBpm(it) }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Save Button (Now securely inside the flow)
+                Button(
+                    onClick = { showSaveDialog = true },
+                    modifier = Modifier
+                        .height(50.dp)
+                        .fillMaxWidth(0.7f),
+                    shape = MaterialTheme.shapes.large,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White.copy(alpha = 0.15f),
+                        contentColor = Color.White
+                    ),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                ) {
+                    Text(text = "Save preset", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
+                
+                // Bottom margin to ensure the 20dp gap from nav bar
+                Spacer(modifier = Modifier.height(40.dp))
+            }
         }
     }
 
